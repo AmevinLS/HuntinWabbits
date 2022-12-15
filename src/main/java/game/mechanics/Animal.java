@@ -1,15 +1,19 @@
 package game.mechanics;
 
 public abstract class Animal implements Runnable{
-    final private String name;
-    private int health;
-    private int speed;
-    final private int strength;
-    final private String species;
-    private Position pos;
-    private Path curr_path = null;
+    final protected Game game;
+    final protected String name;
+    protected int health;
+    protected int speed;
+    final protected int strength;
+    final protected String species;
+    protected Position pos;
+    protected Path currPath = null;
 
-    Animal(String name, int health, int speed, int strength, String species, Position pos) {
+    protected final static int TIME_DELTA = 1000;
+
+    Animal(Game game, String name, int health, int speed, int strength, String species, Position pos) {
+        this.game = game;
         this.name = name;
         this.health = health;
         this.speed = speed;
@@ -19,7 +23,7 @@ public abstract class Animal implements Runnable{
     }
 
     public void makeStepOnPath() {
-        this.pos = curr_path.getNextPos();
+        this.pos = currPath.getNextPos();
     }
 
     public Position getPos() {

@@ -1,6 +1,7 @@
 package com.example.huntinwabbits;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -15,9 +16,39 @@ public class CounterApplication extends Application {
         stage.setTitle("Counting Stuff!");
         stage.setScene(scene);
         stage.show();
+
+        Thread renderer = new Renderer(fxmlLoader.getController());
+        renderer.setDaemon(true);
+        renderer.start();
     }
 
     public static void main(String[] args) {
         launch();
+    }
+
+    class Renderer extends Thread {
+
+        final MainController controller;
+        public Renderer(MainController control) {
+            this.controller = control;
+        }
+
+        @Override
+        public void run() {
+            while(true) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        controller.refreshMap();
+                    }
+                });
+            }
+        }
     }
 }

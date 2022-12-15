@@ -8,11 +8,16 @@ import java.util.Scanner;
 
 
 class InvalidMapException extends Exception {
+    public InvalidMapException() {
+        super();
+    }
     public InvalidMapException(String str) {
         super(str);
     }
+    public InvalidMapException(String str, Exception cause) {
+        super(str, cause);
+    }
 }
-
 
 public class Map {
     private final List<List<Tile>> tiles;
@@ -62,6 +67,19 @@ public class Map {
         this.numCols = col;
     }
 
+    public List<Place> createPlaceList() {
+        List<Place> res = new ArrayList<Place>();
+        return res;
+    }
+
+    public boolean isValidPos(Position pos) {
+        if (pos.getX() < 0 || pos.getY() < 0)
+            return false;
+        if (pos.getX() >= numRows || pos.getY() >= numCols)
+            return false;
+        return true;
+    }
+
     public Path getPreyPath(Position p1, Position p2) {
         // TODO
         return null;
@@ -88,8 +106,12 @@ public class Map {
         return resPath;
     }
 
+    public Tile getTile(int x, int y) {
+        return tiles.get(x).get(y);
+    }
+
     public Tile getTile(Position p) {
-        return tiles.get(p.getX()).get(p.getY());
+        return this.getTile(p.getX(), p.getY());
     }
 
     public char getTileAsChar(Position p) {
