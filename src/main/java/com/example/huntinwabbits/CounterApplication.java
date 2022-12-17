@@ -12,7 +12,7 @@ public class CounterApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(CounterApplication.class.getResource("Main.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 320, 240);
+        Scene scene = new Scene(fxmlLoader.load(), 800, 500);
         stage.setTitle("Counting Stuff!");
         stage.setScene(scene);
         stage.show();
@@ -27,7 +27,7 @@ public class CounterApplication extends Application {
     }
 
     class Renderer extends Thread {
-
+        private final static int REFRESH_TIME = 50;
         final MainController controller;
         public Renderer(MainController control) {
             this.controller = control;
@@ -37,7 +37,7 @@ public class CounterApplication extends Application {
         public void run() {
             while(true) {
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(REFRESH_TIME);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

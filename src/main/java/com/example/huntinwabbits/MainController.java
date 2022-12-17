@@ -1,24 +1,20 @@
 package com.example.huntinwabbits;
 
 import game.mechanics.*;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
 
 import java.net.URL;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
@@ -28,7 +24,7 @@ public class MainController implements Initializable {
     @FXML
     private AnchorPane mapPane;
 
-    List<Cell> cells = null;
+//    List<Cell> cells = null;
     Canvas canvas;
     Game game = null;
 
@@ -84,6 +80,17 @@ public class MainController implements Initializable {
     }
 
     @FXML
+    protected void onCanvasMouseClick(MouseEvent event) {
+        double mouseX = event.getX(), mouseY = event.getY();
+        int nRows = game.getMap().getNumRows(), nCols = game.getMap().getNumCols();
+        double tileWidth = canvas.getWidth() / nCols, tileHeight = canvas.getHeight() / nRows;
+
+        int xInd = (int)(mouseY / tileWidth), yInd = (int)(mouseX / tileHeight);
+        Tile tile = game.getMap().getTile(xInd, yInd);
+        System.out.println(tile);
+    }
+
+    @FXML
     protected void onUpdateButtonClick() {
         for(Animal anim : this.game.getAnimals()) {
             Thread th = new Thread(anim);
@@ -108,8 +115,20 @@ public class MainController implements Initializable {
                 if (tile instanceof Road) {
                     gc.setFill(Color.BROWN);
                 }
-                else if (tile instanceof Field) {
+                else if (tile instanceof Grass) {
                     gc.setFill(Color.GREEN);
+                }
+                else if (tile instanceof Intersection) {
+                    gc.setFill(Color.SADDLEBROWN);
+                }
+                else if (tile instanceof FoodSource) {
+                    gc.setFill(Color.DARKORANGE);
+                }
+                else if (tile instanceof WaterSource) {
+                    gc.setFill(Color.CYAN);
+                }
+                else if (tile instanceof Hideout) {
+                    gc.setFill(Color.DARKGREY);
                 }
                 gc.fillRect(j*cellWidth, i*cellHeight, cellWidth, cellHeight);
             }

@@ -88,7 +88,6 @@ public class Prey extends Animal {
                     }
                 }
                 pos = newPos;
-                System.out.println("Made random step to" + pos);
             }
         }
     }

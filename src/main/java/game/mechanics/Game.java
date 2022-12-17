@@ -13,7 +13,7 @@ public class Game {
     public Game(String pathToMap) throws FileNotFoundException, InvalidMapException {
         this.map = new Map(pathToMap);
         this.animals = new ArrayList<Animal>();
-        this.places = new ArrayList<Place>();
+        this.places = this.map.createPlaceList();
     }
 
     public void addAnimal(Animal anim) {

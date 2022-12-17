@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 
 
-public abstract class Place extends Tile {
+public abstract class Place extends Tile implements PreyVisitable{
     private String name;
     private int maxCapacity;
     Semaphore sem;
@@ -16,11 +16,15 @@ public abstract class Place extends Tile {
         this.sem = new Semaphore(capacity);
     }
 
-    public void enter() {
+    public synchronized void enter() {
         sem.acquireUninterruptibly();
     }
 
-    public void leave() {
+    public synchronized void leave() {
         sem.release();
+    }
+
+    public void setMaxCapacity(int newCapacity) {
+        this.maxCapacity = newCapacity;
     }
 }

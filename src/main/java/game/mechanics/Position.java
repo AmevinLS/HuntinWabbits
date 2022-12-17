@@ -22,8 +22,12 @@ public class Position {
         return "(" + x + ", " + y + ")";
     }
 
-    public boolean equals(Position p) {
-        return (this.x == p.x) && (this.y == p.y);
+    @Override
+    public boolean equals(Object p) {
+        if(p instanceof Position) {
+            return (this.x == ((Position)p).x) && (this.y == ((Position)p).y);
+        }
+        return false;
     }
 
     public int getX() {

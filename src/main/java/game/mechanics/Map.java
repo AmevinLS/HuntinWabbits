@@ -1,23 +1,9 @@
 package game.mechanics;
 
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Scanner;
 
-
-class InvalidMapException extends Exception {
-    public InvalidMapException() {
-        super();
-    }
-    public InvalidMapException(String str) {
-        super(str);
-    }
-    public InvalidMapException(String str, Exception cause) {
-        super(str, cause);
-    }
-}
 
 public class Map {
     private final List<List<Tile>> tiles;
@@ -33,42 +19,56 @@ public class Map {
     }
 
     public Map(String pathToMap) throws FileNotFoundException, InvalidMapException {
+        String errorMessage = "Couldn't parse map at " + pathToMap;
         this.tiles = new ArrayList<List<Tile>>();
 
         File f = new File(pathToMap);
         Scanner scan = new Scanner(f);
-        int row = 0;
-        Integer col = null;
-        while (scan.hasNextLine()) {
+
+        this.numRows = scan.nextInt();
+        this.numCols = scan.nextInt();
+        scan.nextLine();
+
+        for(int row=0; row<numRows; row++) {
             this.tiles.add(new ArrayList<Tile>());
             String line = scan.nextLine();
 
-            if (col == null) {
-                col = line.length();
-            }
-            else if (col != line.length()){
-                throw new InvalidMapException("Couldn't parse map at " + pathToMap);
+            if (line.length() != this.numCols){
+                throw new InvalidMapException(errorMessage);
             }
 
             for(int i=0; i<line.length(); i++) {
                 char ch = line.charAt(i);
                 Position pos = new Position(row, i);
                 Tile tile = switch (ch) {
-                    case 'F' -> new Field(pos);
+                    case 'G' -> new Grass(pos);
                     case 'R' -> new Road(pos);
+                    case 'I' -> new Intersection(pos, "IntersectName");
+                    case 'F' -> new FoodSource(pos, "FoodName", 1, 1); // TODO: make possibility for other capacities
+                    case 'W' -> new WaterSource(pos, "WaterName", 1, 1);
+                    case 'H' -> new Hideout(pos, "HideoutName", 1);
                     default -> null;
                 };
                 this.tiles.get(row).add(tile);
             }
-            row++;
         }
 
-        this.numRows = row;
-        this.numCols = col;
+        for(Place place : this.createPlaceList()) {
+            int capacity = scan.nextInt();
+            place.setMaxCapacity(capacity);
+        }
     }
 
     public List<Place> createPlaceList() {
         List<Place> res = new ArrayList<Place>();
+        for(int i=0;i<numRows;i++) {
+            for(int j=0;j<numCols;j++) {
+                Tile tile = this.getTile(i, j);
+                if (tile instanceof Place) {
+                    res.add((Place) tile);
+                }
+            }
+        }
         return res;
     }
 
@@ -80,9 +80,37 @@ public class Map {
         return true;
     }
 
-    public Path getPreyPath(Position p1, Position p2) {
-        // TODO
-        return null;
+    private boolean dfsPreyPath(Position currPos, Position targetPos, Path currPath) {
+        if (currPos.equals(targetPos)) {
+            return true;
+        }
+
+        for(Position pos : this.getNeighborPositions(currPos)) {
+            if (currPath.contains(pos))
+                continue;
+            Tile tile = this.getTile(pos);
+            if (tile instanceof PreyVisitable) {
+                currPath.append(pos);
+                if (dfsPreyPath(pos, targetPos, currPath)) {
+                    return true;
+                }
+                currPath.popLastPosition();
+            }
+        }
+        return false;
+    }
+
+    public Path getPreyPath(Position p1, Position p2) throws PreyPathInfeasibleException{
+        Tile tile1 = this.getTile(p1), tile2 = this.getTile(p2);
+        if(!(tile1 instanceof PreyVisitable) || !(tile2 instanceof PreyVisitable)) {
+            throw new PreyPathInfeasibleException("One of tiles at " + p1 + " or " + p2 + " are not PreyVisitable");
+        }
+        Path resPath = new Path();
+        resPath.append(p1);
+        if (!dfsPreyPath(p1, p2, resPath)) {
+            throw new PreyPathInfeasibleException("Couldn't build path between " + p1 + " " + p2);
+        }
+        return resPath;
     }
 
     public Path getPredatorPath(Position p1, Position p2) {
@@ -106,6 +134,22 @@ public class Map {
         return resPath;
     }
 
+    public List<Position> getNeighborPositions(Position p) {
+        List<Position> neighbs = new LinkedList<>();
+        Position pos;
+        int[] ds = {-1, 1};
+        for(int d : ds) {
+            pos = p.shift(d, 0);
+            if (this.isValidPos(pos))
+                neighbs.add(pos);
+
+            pos = p.shift(0, d);
+            if (this.isValidPos(pos))
+                neighbs.add(pos);
+        }
+        return neighbs;
+    }
+
     public Tile getTile(int x, int y) {
         return tiles.get(x).get(y);
     }
@@ -119,7 +163,7 @@ public class Map {
         if (tile instanceof Road) {
             return 'R';
         }
-        else if (tile instanceof Field) {
+        else if (tile instanceof Grass) {
             return 'F';
         }
         return 'X';

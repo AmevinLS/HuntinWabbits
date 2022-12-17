@@ -2,7 +2,6 @@ package game.mechanics;
 
 import java.util.ArrayList;
 import java.util.List;
-import game.mechanics.Position;
 
 public class Path {
     List<Position> posits;
@@ -27,8 +26,16 @@ public class Path {
         return posits.remove(0);
     }
 
+    public Position popLastPosition() {
+        return posits.remove(posits.size()-1);
+    }
+
     public boolean isEmpty() {
         return posits.isEmpty();
+    }
+
+    public boolean contains(Position pos) {
+        return posits.contains(pos);
     }
 
     @Override
