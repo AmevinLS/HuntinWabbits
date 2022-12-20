@@ -10,7 +10,8 @@ public abstract class Animal implements Runnable{
     protected Position pos;
     protected Path currPath = null;
 
-    protected final static int TIME_DELTA = 1000;
+    protected final static int LOOP_TIME_DELAY = 1000;
+    protected final static int RESOURCE_DRAIN_TIME = 2000;
 
     Animal(Game game, String name, int health, int speed, int strength, String species, Position pos) {
         this.game = game;
@@ -28,5 +29,13 @@ public abstract class Animal implements Runnable{
 
     public Position getPos() {
         return this.pos;
+    }
+
+    public Path getCurrPath() {
+        return this.currPath;
+    }
+
+    public int getHealth() {
+        return this.health;
     }
 }

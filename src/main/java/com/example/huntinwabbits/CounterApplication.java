@@ -27,7 +27,7 @@ public class CounterApplication extends Application {
     }
 
     class Renderer extends Thread {
-        private final static int REFRESH_TIME = 50;
+        private final static int REFRESH_TIME = 10;
         final MainController controller;
         public Renderer(MainController control) {
             this.controller = control;

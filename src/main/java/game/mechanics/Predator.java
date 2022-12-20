@@ -19,6 +19,7 @@ enum Mode {
 public class Predator extends Animal {
     private Mode mode = Mode.HUNTING;
     private Prey currTarget = null;
+    private final Object currTargetGuard = new Object();
     private final static int RELAX_TIME = 5000;
     private final static int AFTER_ATTACK_PAUSE = 2000;
 
@@ -50,45 +51,47 @@ public class Predator extends Animal {
     }
 
     public void removeTarget(Prey prey) {
-        if (this.currTarget == prey)
-            this.currTarget = null;
+        synchronized (currTargetGuard) {
+            if (this.currTarget == prey)
+                this.currTarget = null;
+        }
     }
 
     @Override
     public void run() {
         while(true) {
             try {
-                Thread.sleep(Animal.TIME_DELTA / speed);
+                Thread.sleep(Animal.LOOP_TIME_DELAY / speed);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
 
             if(this.mode == Mode.HUNTING) {
-                if(this.currTarget == null) {
-                    try {
-                        this.currTarget = this.selectPrey();
-                    }
-                    catch (NoPreyException ex) {
-                        this.mode = Mode.RELAXING;
-                        continue;
-                    }
-
-                }
-                this.currPath = game.getMap().getPredatorPath(this.getPos(), this.currTarget.getPos());
-                if (!currPath.isEmpty()) {
-                    this.makeStepOnPath();
-                }
-
-                if (pos.equals(this.currTarget.getPos())) {
-                    if (this.attack(this.currTarget)) {
-                        this.mode = Mode.RELAXING;
-                        System.out.println("Yo we started relaxin'");
-                    }
-                    else {
+                synchronized (currTargetGuard) {
+                    if (this.currTarget == null) {
                         try {
-                            Thread.sleep(Predator.AFTER_ATTACK_PAUSE);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
+                            this.currTarget = this.selectPrey();
+                        } catch (NoPreyException ex) {
+                            this.mode = Mode.RELAXING;
+                            continue;
+                        }
+
+                    }
+                    this.currPath = game.getMap().getPredatorPath(this.getPos(), this.currTarget.getPos());
+                    if (!currPath.isEmpty()) {
+                        this.makeStepOnPath();
+                    }
+
+                    if (pos.equals(this.currTarget.getPos())) {
+                        if (this.attack(this.currTarget)) {
+                            this.mode = Mode.RELAXING;
+                            System.out.println("Yo we started relaxin'");
+                        } else {
+                            try {
+                                Thread.sleep(Predator.AFTER_ATTACK_PAUSE);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
                     }
                 }

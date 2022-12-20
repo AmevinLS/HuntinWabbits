@@ -10,8 +10,11 @@ public class Prey extends Animal {
     final private int MAX_WATER_LVL;
     final private int MAX_FOOD_LVL;
     private int waterLvl;
+    private final Object waterLvlGuard = new Object();
     private int foodLvl;
+    private final Object foodLvlGuard = new Object();
     private State state = State.DEFAULT;
+
 
     public Prey(Game game, String name, int health, int speed, int strength, String species, Position pos, int maxWaterLvl, int maxFoodLvl) {
         super(game, name, health, speed, strength, species, pos);
@@ -29,6 +32,30 @@ public class Prey extends Animal {
     public FoodSource selectFoodSource() {
         // TODO
         return null;
+    }
+
+    public synchronized void decreaseHealth(int amount) {
+        this.health -= amount;
+    }
+    public void processWaterLvlDecrease(int amount) {
+        synchronized (waterLvlGuard) {
+            if (waterLvl == 0) {
+                decreaseHealth(1);
+                return;
+            }
+            waterLvl = Integer.max(waterLvl - amount, 0);
+        }
+        killSelfIfDead();
+    }
+    public void processFoodLvlDecrease(int amount) {
+        synchronized (foodLvlGuard) {
+            if (foodLvl == 0) {
+                decreaseHealth(1);
+                return;
+            }
+            foodLvl = Integer.max(foodLvl - amount, 0);
+        }
+        killSelfIfDead();
     }
 
     public synchronized boolean receiveAttack(Predator pred) {
@@ -53,7 +80,7 @@ public class Prey extends Animal {
         return (health > 0);
     }
 
-    public void killSelf() {
+    public synchronized void killSelf() {
         game.removeAnimal(this);
         for (Animal anim : game.getAnimals()) {
             if (anim instanceof Predator) {
@@ -62,13 +89,19 @@ public class Prey extends Animal {
         }
     }
 
+    public synchronized void killSelfIfDead() {
+        if (!this.isAlive()) {
+            this.killSelf();
+        }
+    }
+
     @Override
     public void run() {
         Random rand = new Random();
         while(this.isAlive()) {
-            System.out.println("I am alive!");
+//            System.out.println("I am alive! Water: " + waterLvl + ", Food: " + foodLvl);
             try {
-                Thread.sleep(TIME_DELTA / speed);
+                Thread.sleep(LOOP_TIME_DELAY / speed);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -90,5 +123,13 @@ public class Prey extends Animal {
                 pos = newPos;
             }
         }
+    }
+
+    public int getWaterLvl() {
+        return waterLvl;
+    }
+
+    public int getFoodLvl() {
+        return foodLvl;
     }
 }

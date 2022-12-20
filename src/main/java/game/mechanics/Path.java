@@ -38,6 +38,14 @@ public class Path {
         return posits.contains(pos);
     }
 
+    public int size() {
+        return posits.size();
+    }
+
+    public Position get(int ind) {
+        return posits.get(ind);
+    }
+
     @Override
     public String toString() {
         String res = "[ ";
