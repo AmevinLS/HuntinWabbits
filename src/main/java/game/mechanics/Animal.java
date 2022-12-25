@@ -3,7 +3,7 @@ package game.mechanics;
 public abstract class Animal implements Runnable{
     final protected Game game;
     final protected String name;
-    protected int health;
+    protected volatile int health;
     protected int speed;
     final protected int strength;
     final protected String species;
@@ -24,7 +24,7 @@ public abstract class Animal implements Runnable{
     }
 
     public void makeStepOnPath() {
-        this.pos = currPath.getNextPos();
+        this.pos = currPath.popNextPos();
     }
 
     public Position getPos() {

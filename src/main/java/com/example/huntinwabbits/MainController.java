@@ -65,10 +65,10 @@ public class MainController implements Initializable {
                 new Position(6, 2)
         );
 
-        this.game.addAnimal(pred);
+//        this.game.addAnimal(pred);
         this.game.addAnimal(prey);
-        this.game.addAnimal(prey2);
-        this.game.addAnimal(pred2);
+//        this.game.addAnimal(prey2);
+//        this.game.addAnimal(pred2);
 
 
         canvas = new Canvas();
@@ -213,8 +213,7 @@ public class MainController implements Initializable {
 
             healthTxt = "" + selAnimal.getHealth();
 
-            if (selAnimal instanceof Prey) {
-                Prey selPrey = (Prey) selAnimal;
+            if (selAnimal instanceof Prey selPrey) {
                 waterTxt = "" + selPrey.getWaterLvl();
                 foodTxt = "" + selPrey.getFoodLvl();
             }

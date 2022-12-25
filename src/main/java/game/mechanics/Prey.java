@@ -7,6 +7,34 @@ enum State {
 }
 
 public class Prey extends Animal {
+    private class Depleter extends Thread {
+        private final static int DEPLETION_TIME = 2000;
+        private boolean stopped = false;
+
+        public void finish() {
+            stopped = true;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                if (stopped)
+                    break;
+
+                try {
+                    Thread.sleep(DEPLETION_TIME);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                processWaterLvlDecrease(1);
+                processFoodLvlDecrease(1);
+            }
+        }
+    }
+
+    final private Depleter depleter = new Depleter();
+
+    final private int MAX_HEALTH;
     final private int MAX_WATER_LVL;
     final private int MAX_FOOD_LVL;
     private int waterLvl;
@@ -14,10 +42,13 @@ public class Prey extends Animal {
     private int foodLvl;
     private final Object foodLvlGuard = new Object();
     private State state = State.DEFAULT;
+    private final Object stateGuard = new Object();
 
+    private Place targetPlace = null;
 
     public Prey(Game game, String name, int health, int speed, int strength, String species, Position pos, int maxWaterLvl, int maxFoodLvl) {
         super(game, name, health, speed, strength, species, pos);
+        this.MAX_HEALTH = health;
         this.MAX_FOOD_LVL = maxFoodLvl;
         this.MAX_WATER_LVL = maxWaterLvl;
         this.foodLvl = this.MAX_FOOD_LVL;
@@ -29,13 +60,31 @@ public class Prey extends Animal {
         return null;
     }
 
-    public FoodSource selectFoodSource() {
-        // TODO
-        return null;
+    public FoodSource selectFoodSource() throws PreyPathInfeasibleException {
+        FoodSource bestSrc = null;
+        int bestDist = -1;
+        for (Place place : game.getPlaces()) {
+            if (place instanceof FoodSource currSrc) {
+                int currDist = game.getMap().getPreyPath(pos, currSrc.getPos()).size();
+
+                if (bestSrc == null) {
+                    bestSrc = currSrc;
+                    bestDist = currDist;
+                    continue;
+                }
+
+                if ((currSrc.numFreeSpaces() != 0) && (currDist < bestDist)) {
+                    bestSrc = currSrc;
+                    bestDist = currDist;
+                }
+            }
+        }
+        return bestSrc;
     }
 
     public synchronized void decreaseHealth(int amount) {
         this.health -= amount;
+        killSelfIfDead();
     }
     public void processWaterLvlDecrease(int amount) {
         synchronized (waterLvlGuard) {
@@ -80,23 +129,38 @@ public class Prey extends Animal {
         return (health > 0);
     }
 
-    public synchronized void killSelf() {
+    private synchronized void killSelf() {
+        depleter.finish();
         game.removeAnimal(this);
-        for (Animal anim : game.getAnimals()) {
-            if (anim instanceof Predator) {
-                ((Predator) anim).removeTarget(this);
-            }
+    }
+
+    private synchronized void killSelfIfDead() {
+        if (!this.isAlive()) {
+            System.out.println("Yo, I'm killing myself");
+            this.killSelf();
         }
     }
 
-    public synchronized void killSelfIfDead() {
-        if (!this.isAlive()) {
-            this.killSelf();
+    private void enterTargetPlace() {
+        if (!pos.equals(targetPlace.getPos())) {
+            throw new RuntimeException("Trying to enter place, with positions of place and prey not equal");
+        }
+        targetPlace.enter();
+        synchronized (stateGuard) {
+            state = switch (state) {
+                case MOVING_TO_FOOD -> State.EATING;
+                case MOVING_TO_WATER -> State.DRINKING;
+                case MOVING_TO_HIDEOUT -> State.HIDING;
+                default -> throw new RuntimeException("Prey trying to start activity from not a 'MOVING_TO_...' state");
+            };
         }
     }
 
     @Override
     public void run() {
+        depleter.setDaemon(true);
+        depleter.start();
+
         Random rand = new Random();
         while(this.isAlive()) {
 //            System.out.println("I am alive! Water: " + waterLvl + ", Food: " + foodLvl);
@@ -105,23 +169,69 @@ public class Prey extends Animal {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-
             synchronized (this) {
-                Position newPos = new Position(-1, -1);
-                while (!game.getMap().isValidPos(newPos)) {
-                    int i = rand.nextInt(4);
-                    if (i == 0) {
-                        newPos = pos.shift(-1, 0);
-                    } else if (i == 1) {
-                        newPos = pos.shift(0, 1);
-                    } else if (i == 2) {
-                        newPos = pos.shift(1, 0);
-                    } else {
-                        newPos = pos.shift(0, -1);
+                if (state == State.DEFAULT && foodLvl <= Math.ceil(MAX_FOOD_LVL * 0.4)) {
+                    // TODO: investigate why drawing stuff changes
+                    state = State.MOVING_TO_FOOD;
+                    try {
+                        FoodSource src = this.selectFoodSource();
+                        this.currPath = game.getMap().getPreyPath(this.pos, src.getPos());
+                        this.targetPlace = src;
+                    } catch (PreyPathInfeasibleException e) {
+                        throw new RuntimeException(e);
                     }
                 }
-                pos = newPos;
+
+                if (state == State.MOVING_TO_FOOD || state == State.MOVING_TO_WATER || state == State.MOVING_TO_HIDEOUT) {
+                    System.out.println("About to make step on path");
+                    this.makeStepOnPath();
+                    if (this.currPath.isEmpty()) {
+                        this.currPath = null;
+                        this.enterTargetPlace();
+                    }
+                }
+
+                if (state == State.EATING || state == State.DRINKING) {
+                    // TODO: do something here;
+                }
+
+                if (state == State.HIDING) {
+                    // TODO: do something here
+                }
             }
+
+//            try {
+//                Thread.sleep(LOOP_TIME_DELAY / speed);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//
+//            synchronized (this) {
+//                Position newPos = new Position(-1, -1);
+//                while (!game.getMap().isValidPos(newPos)) {
+//                    int i = rand.nextInt(4);
+//                    if (i == 0) {
+//                        newPos = pos.shift(-1, 0);
+//                    } else if (i == 1) {
+//                        newPos = pos.shift(0, 1);
+//                    } else if (i == 2) {
+//                        newPos = pos.shift(1, 0);
+//                    } else {
+//                        newPos = pos.shift(0, -1);
+//                    }
+//                }
+//                pos = newPos;
+//            }
+//
+//            if (state == State.DEFAULT && health <= Math.ceil(MAX_HEALTH * 0.2)) {
+//                this.state = State.MOVING_TO_FOOD;
+//                try {
+//                    FoodSource src = this.selectFoodSource();
+//                    this.currPath = game.getMap().getPreyPath(this.pos, src.getPos());
+//                } catch (PreyPathInfeasibleException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
         }
     }
 

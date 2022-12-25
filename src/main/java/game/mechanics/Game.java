@@ -5,37 +5,37 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class Game {
-    private class Depleter extends Thread {
-        private final static int DEPLETION_TIME = 1000;
-
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    Thread.sleep(DEPLETION_TIME);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                synchronized (animalsGuard) {
-                    for (Animal animal : animals) {
-                        if (animal instanceof Prey) {
-                            Prey prey = (Prey) animal;
-                            prey.processWaterLvlDecrease(1);
-                            prey.processFoodLvlDecrease(1);
-                            System.out.println("Depleted stuff");
-                        }
-                    }
-                }
-            }
-        }
-    }
+//    private class Depleter extends Thread {
+//        private final static int DEPLETION_TIME = 2000;
+//
+//        @Override
+//        public void run() {
+//            while (true) {
+//                try {
+//                    Thread.sleep(DEPLETION_TIME);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//                synchronized (animalsGuard) {
+//                    for (Animal animal : animals) {
+//                        if (animal instanceof Prey) {
+//                            Prey prey = (Prey) animal;
+//                            prey.processWaterLvlDecrease(1);
+//                            prey.processFoodLvlDecrease(1);
+//                            System.out.println("Depleted stuff");
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     private final Map map;
     private volatile List<Animal> animals;
     private final Object animalsGuard = new Object();
     private volatile List<Place> places;
 
-    private final Depleter depleter = new Depleter();
+//    private final Depleter depleter = new Depleter();
 
     public Game(String pathToMap) throws FileNotFoundException, InvalidMapException {
         this.map = new Map(pathToMap);
@@ -49,8 +49,8 @@ public class Game {
             th.setDaemon(true);
             th.start();
         }
-        depleter.setDaemon(true);
-        depleter.start();
+//        depleter.setDaemon(true);
+//        depleter.start();
     }
 
     public final void pause() {

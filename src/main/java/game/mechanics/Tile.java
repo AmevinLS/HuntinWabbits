@@ -1,7 +1,7 @@
 package game.mechanics;
 
 public abstract class Tile {
-    private Position pos;
+    private final Position pos;
 
     Tile(Position p) {
         this.pos = p;

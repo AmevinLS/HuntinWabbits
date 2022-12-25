@@ -26,5 +26,10 @@ public abstract class Place extends Tile implements PreyVisitable{
 
     public void setMaxCapacity(int newCapacity) {
         this.maxCapacity = newCapacity;
+        // TODO: Make this more error-proof
+    }
+
+    public synchronized int numFreeSpaces() {
+        return sem.availablePermits();
     }
 }
