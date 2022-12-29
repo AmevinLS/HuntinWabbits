@@ -1,7 +1,7 @@
 package game.mechanics;
 
 public class FoodSource extends Source{
-    FoodSource(Position p, String name, int capacity, int replenishSpeed) {
+    public FoodSource(Position p, String name, int capacity, int replenishSpeed) {
         super(p, name, capacity, replenishSpeed);
     }
 
@@ -16,7 +16,7 @@ public class FoodSource extends Source{
 
             synchronized (occupantsGuard) {
                 for (Prey occupant : occupants) {
-                    occupant.processWaterLvlChange(1);
+                    occupant.processFoodLvlChange(1);
                 }
             }
         }

@@ -58,7 +58,7 @@ public class MainController implements Initializable {
         );
         Prey prey2 = new Prey(
                 this.game, "Lol", 10, 2, 2, "cat",
-                new Position(8, 4), 13, 13
+                new Position(0, 4), 10, 10
         );
         Predator pred2 = new Predator(
                 this.game, "Kek", 10, 3, 4, "dog",
@@ -67,7 +67,7 @@ public class MainController implements Initializable {
 
 //        this.game.addAnimal(pred);
         this.game.addAnimal(prey);
-//        this.game.addAnimal(prey2);
+        this.game.addAnimal(prey2);
 //        this.game.addAnimal(pred2);
 
 
@@ -123,6 +123,11 @@ public class MainController implements Initializable {
     @FXML
     protected void onPauseButtonClick() {
         this.game.pause();
+        Place place1 = game.getPlaces().get(0);
+        Place place2 = new WaterSource(new Position(3, 3), "kek", 2, 2);
+        if (place1.getClass().equals(place2.getClass())) {
+            System.out.println("They are equal!");
+        }
     }
 
     private double getTileWidth() {

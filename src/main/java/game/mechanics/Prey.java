@@ -55,9 +55,26 @@ public class Prey extends Animal {
         this.waterLvl = this.MAX_WATER_LVL;
     }
 
-    public WaterSource selectWaterSource() {
-        // TODO
-        return null;
+    public WaterSource selectWaterSource() throws PreyPathInfeasibleException{
+        WaterSource bestSrc = null;
+        int bestDist = -1;
+        for (Place place : game.getPlaces()) {
+            if (place instanceof WaterSource currSrc) {
+                int currDist = game.getMap().getPreyPath(pos, currSrc.getPos()).size();
+
+                if (bestSrc == null) {
+                    bestSrc = currSrc;
+                    bestDist = currDist;
+                    continue;
+                }
+
+                if ((currSrc.numFreeSpaces() != 0) && (currDist < bestDist)) {
+                    bestSrc = currSrc;
+                    bestDist = currDist;
+                }
+            }
+        }
+        return bestSrc;
     }
 
     public FoodSource selectFoodSource() throws PreyPathInfeasibleException {
@@ -80,6 +97,33 @@ public class Prey extends Animal {
             }
         }
         return bestSrc;
+    }
+
+    public Place selectPlace() throws PreyPathInfeasibleException{
+        Place bestPlace = switch (state) {
+            case MOVING_TO_FOOD -> new FoodSource(new Position(0, 0), "foo", 1, 1);
+            case MOVING_TO_WATER -> new WaterSource(new Position(0, 0), "foo", 1, 1);
+            case MOVING_TO_HIDEOUT -> new Hideout(new Position(0, 0), "foo", 1);
+            default -> throw new RuntimeException("Prey trying to select a target Place from not a 'MOVING_TO_...' state");
+        };
+        int bestDist = -1;
+        for (Place place : game.getPlaces()) {
+            if (place.getClass().equals(bestPlace.getClass())) {
+                int currDist = game.getMap().getPreyPath(pos, place.getPos()).size();
+
+                if (bestDist == -1) {
+                    bestPlace = place;
+                    bestDist = currDist;
+                    continue;
+                }
+
+                if ((place.numFreeSpaces() != 0) && (currDist < bestDist)) {
+                    bestPlace = place;
+                    bestDist = currDist;
+                }
+            }
+        }
+        return bestPlace;
     }
 
     public synchronized void decreaseHealth(int amount) {
@@ -161,7 +205,7 @@ public class Prey extends Animal {
                 case MOVING_TO_FOOD -> State.EATING;
                 case MOVING_TO_WATER -> State.DRINKING;
                 case MOVING_TO_HIDEOUT -> State.HIDING;
-                default -> throw new RuntimeException("Prey trying to start activity from not a 'MOVING_TO_...' state");
+                default -> throw new RuntimeException("Prey trying to enter Place from not a 'MOVING_TO_...' state");
             };
         }
     }
@@ -175,20 +219,32 @@ public class Prey extends Animal {
         while(this.isAlive()) {
 //            System.out.println("I am alive! Water: " + waterLvl + ", Food: " + foodLvl);
             try {
+                System.out.println("State:" + state);
                 Thread.sleep(LOOP_TIME_DELAY / speed);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
             synchronized (this) {
-                if (state == State.DEFAULT && foodLvl <= Math.ceil(MAX_FOOD_LVL * 0.4)) {
-                    // TODO: investigate why drawing stuff changes
-                    state = State.MOVING_TO_FOOD;
-                    try {
-                        FoodSource src = this.selectFoodSource();
-                        this.currPath = game.getMap().getPreyPath(this.pos, src.getPos());
-                        this.targetPlace = src;
-                    } catch (PreyPathInfeasibleException e) {
-                        throw new RuntimeException(e);
+                if (state == State.DEFAULT) {
+                    if (foodLvl <= Math.ceil(MAX_FOOD_LVL * 0.4)) {
+                        // TODO: investigate why drawing stuff changes
+                        state = State.MOVING_TO_FOOD;
+                    }
+                    else if (waterLvl <= Math.ceil(MAX_WATER_LVL*0.4)) {
+                        state = State.MOVING_TO_WATER;
+                    }
+                    else {
+//                        state = State.MOVING_TO_HIDEOUT;
+                    }
+
+                    if (state == State.MOVING_TO_FOOD || state == State.MOVING_TO_WATER || state == State.MOVING_TO_HIDEOUT) {
+                        try {
+                            Place place = this.selectPlace();
+                            this.currPath = game.getMap().getPreyPath(this.pos, place.getPos());
+                            this.targetPlace = place;
+                        } catch (PreyPathInfeasibleException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
 
@@ -201,8 +257,13 @@ public class Prey extends Animal {
                     }
                 }
 
-                if (state == State.EATING || state == State.DRINKING) {
-                    // TODO: do something here;
+                if (state == State.EATING && foodLvl >= Math.floor(MAX_FOOD_LVL * 0.9)) {
+                    this.targetPlace.leave(this);
+                    state = State.DEFAULT;
+                }
+                else if (state == State.DRINKING && waterLvl >= Math.floor(MAX_WATER_LVL * 0.9)) {
+                    this.targetPlace.leave(this);
+                    state = State.DEFAULT;
                 }
 
                 if (state == State.HIDING) {

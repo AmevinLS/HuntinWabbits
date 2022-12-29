@@ -1,7 +1,7 @@
 package game.mechanics;
 
 public class WaterSource extends Source {
-    WaterSource(Position p, String name, int capacity, int replenishSpeed) {
+    public WaterSource(Position p, String name, int capacity, int replenishSpeed) {
         super(p, name, capacity, replenishSpeed);
     }
 
@@ -16,7 +16,7 @@ public class WaterSource extends Source {
 
             synchronized (occupantsGuard) {
                 for (Prey occupant : occupants) {
-                    occupant.processFoodLvlChange(1);
+                    occupant.processWaterLvlChange(1);
                 }
             }
         }
