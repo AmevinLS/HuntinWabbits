@@ -26,8 +26,8 @@ public class Prey extends Animal {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                processWaterLvlDecrease(1);
-                processFoodLvlDecrease(1);
+                processWaterLvlChange(-1);
+                processFoodLvlChange(-1);
             }
         }
     }
@@ -86,23 +86,33 @@ public class Prey extends Animal {
         this.health -= amount;
         killSelfIfDead();
     }
-    public void processWaterLvlDecrease(int amount) {
+    public void processWaterLvlChange(int amount) {
         synchronized (waterLvlGuard) {
-            if (waterLvl == 0) {
-                decreaseHealth(1);
-                return;
+            if (amount > 0) {
+                waterLvl = Integer.min(waterLvl + amount, MAX_WATER_LVL);
             }
-            waterLvl = Integer.max(waterLvl - amount, 0);
+            else if (amount < 0) {
+                if (waterLvl == 0) {
+                    decreaseHealth(1);
+                    return;
+                }
+                waterLvl = Integer.max(waterLvl + amount, 0);
+            }
         }
         killSelfIfDead();
     }
-    public void processFoodLvlDecrease(int amount) {
+    public void processFoodLvlChange(int amount) {
         synchronized (foodLvlGuard) {
-            if (foodLvl == 0) {
-                decreaseHealth(1);
-                return;
+            if (amount > 0) {
+                foodLvl = Integer.min(foodLvl + amount, MAX_FOOD_LVL);
             }
-            foodLvl = Integer.max(foodLvl - amount, 0);
+            else if (amount < 0) {
+                if (foodLvl == 0) {
+                    decreaseHealth(1);
+                    return;
+                }
+                foodLvl = Integer.max(foodLvl + amount, 0);
+            }
         }
         killSelfIfDead();
     }
@@ -145,7 +155,7 @@ public class Prey extends Animal {
         if (!pos.equals(targetPlace.getPos())) {
             throw new RuntimeException("Trying to enter place, with positions of place and prey not equal");
         }
-        targetPlace.enter();
+        targetPlace.enter(this);
         synchronized (stateGuard) {
             state = switch (state) {
                 case MOVING_TO_FOOD -> State.EATING;

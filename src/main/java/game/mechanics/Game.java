@@ -5,31 +5,6 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class Game {
-//    private class Depleter extends Thread {
-//        private final static int DEPLETION_TIME = 2000;
-//
-//        @Override
-//        public void run() {
-//            while (true) {
-//                try {
-//                    Thread.sleep(DEPLETION_TIME);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
-//                synchronized (animalsGuard) {
-//                    for (Animal animal : animals) {
-//                        if (animal instanceof Prey) {
-//                            Prey prey = (Prey) animal;
-//                            prey.processWaterLvlDecrease(1);
-//                            prey.processFoodLvlDecrease(1);
-//                            System.out.println("Depleted stuff");
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     private final Map map;
     private volatile List<Animal> animals;
     private final Object animalsGuard = new Object();
@@ -44,31 +19,25 @@ public class Game {
     }
 
     public final void begin() {
+        for(Place place : this.getPlaces()) {
+            if (place instanceof Source src) {
+                Thread th = new Thread(src);
+                th.setDaemon(true);
+                th.start();
+            }
+        }
+
         for(Animal anim : this.getAnimals()) {
             Thread th = new Thread(anim);
             th.setDaemon(true);
             th.start();
         }
-//        depleter.setDaemon(true);
-//        depleter.start();
     }
 
     public final void pause() {
-//        try {
-//            for (Animal anim : this.getAnimals()) {
-//                anim.wait();
-//            }
-//            depleter.wait();
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
         System.out.println("Not implemented LOL");
     }
     public final void resume() {
-//        for (Animal anim : this.getAnimals()) {
-//            anim.notify();
-//        }
-//        depleter.notify();
         System.out.println("Not implemented LOL");
     }
 
