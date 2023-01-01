@@ -4,6 +4,7 @@ public abstract class Animal implements Runnable{
     final protected Game game;
     final protected String name;
     protected volatile int health;
+    final private int MAX_HEALTH;
     protected int speed;
     final protected int strength;
     final protected String species;
@@ -17,10 +18,16 @@ public abstract class Animal implements Runnable{
         this.game = game;
         this.name = name;
         this.health = health;
+        this.MAX_HEALTH = health;
         this.speed = speed;
         this.strength = strength;
         this.species = species;
         this.pos = pos;
+    }
+
+    public void killSelf() {
+        game.removeAnimal(this);
+        System.out.println("Killing myself");
     }
 
     public void makeStepOnPath() {
@@ -37,5 +44,9 @@ public abstract class Animal implements Runnable{
 
     public int getHealth() {
         return this.health;
+    }
+
+    public int getMaxHealth() {
+        return MAX_HEALTH;
     }
 }

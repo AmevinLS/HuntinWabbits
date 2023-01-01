@@ -1,6 +1,7 @@
 package com.example.huntinwabbits;
 
 import game.mechanics.*;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
@@ -8,6 +9,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
@@ -25,6 +27,8 @@ public class MainController implements Initializable {
     @FXML
     private Button pauseButton;
     @FXML
+    private Button killButton;
+    @FXML
     private AnchorPane mapPane;
     @FXML
     private ComboBox<Animal> animalComboBox;
@@ -36,8 +40,15 @@ public class MainController implements Initializable {
     @FXML
     private Label foodLabel;
 
+    @FXML
+    private Label placeLabel;
+    @FXML
+    private ListView<Prey> occupantList;
+
     Canvas canvas;
     Game game = null;
+
+    Position lastSelectedPos = null;
 
     @Override
     public void initialize(URL arg0, ResourceBundle arg1) {
@@ -65,11 +76,10 @@ public class MainController implements Initializable {
                 new Position(6, 2)
         );
 
-//        this.game.addAnimal(pred);
+        this.game.addAnimal(pred);
         this.game.addAnimal(prey);
         this.game.addAnimal(prey2);
 //        this.game.addAnimal(pred2);
-
 
         canvas = new Canvas();
         canvas.widthProperty().bind(mapPane.widthProperty());
@@ -98,26 +108,71 @@ public class MainController implements Initializable {
 
     @FXML
     protected void onCanvasMouseClick(MouseEvent event) {
+        // Update the animal info display
         double mouseX = event.getX(), mouseY = event.getY();
         double tileWidth = getTileWidth(), tileHeight = getTileHeight();
 
         int xInd = (int)(mouseY / tileWidth), yInd = (int)(mouseX / tileHeight);
-        Position pos = new Position(xInd, yInd);
+        lastSelectedPos = new Position(xInd, yInd);
+        updateAnimalList();
+    }
 
+    public void updateAnimalList() {
         animalComboBox.getItems().clear();
         for(Animal animal : game.getAnimals()) {
-            if(animal.getPos().equals(pos)) {
-                animalComboBox.getItems().add(animal);
+            animalComboBox.getItems().add(animal);
+        }
+    }
+
+    public void refreshAnimalInfo() {
+        Animal selAnimal = animalComboBox.getValue();
+        String healthTxt = "None", waterTxt = "None", foodTxt = "None";
+        if (selAnimal != null) {
+            if (selAnimal.getCurrPath() != null) {
+                drawPath(selAnimal.getCurrPath(), selAnimal.getPos());
+            }
+
+            healthTxt = "" + selAnimal.getHealth() + " / " + selAnimal.getMaxHealth();
+
+            if (selAnimal instanceof Prey selPrey) {
+                waterTxt = "" + selPrey.getWaterLvl() + " / " + selPrey.getMaxWaterLvl();
+                foodTxt = "" + selPrey.getFoodLvl() + " / " + selPrey.getMaxFoodLvl();
             }
         }
-        if(animalComboBox.getItems().size() > 0) {
-            animalComboBox.getSelectionModel().select(0);
+        healthLabel.setText("Health: " + healthTxt);
+        waterLabel.setText("Water: " + waterTxt);
+        foodLabel.setText("Food: " + foodTxt);
+
+
+    }
+
+    public void refreshPlaceInfo() {
+        if (lastSelectedPos == null)
+            return;
+
+        Tile tile = game.getMap().getTile(lastSelectedPos);
+        if (tile instanceof Place place) {
+            placeLabel.setText("Place: " + place);
+            occupantList.getItems().clear();
+            synchronized (place.getOccupantsGuard()) {
+                for (Prey occupant : place.getOccupants()) {
+                    occupantList.getItems().add(occupant);
+                }
+            }
         }
     }
 
     @FXML
     protected void onUpdateButtonClick() {
         this.game.begin();
+    }
+
+    @FXML
+    protected void onKillButtonClick() {
+        Animal selAnimal = animalComboBox.getValue();
+        if (selAnimal != null) {
+            selAnimal.killSelf();
+        }
     }
 
     @FXML
@@ -167,6 +222,7 @@ public class MainController implements Initializable {
         double tileWidth = canvWidth / map.getNumCols();
         double tileHeight = canvHeight / map.getNumRows();
 
+        gc.setLineWidth(2);
         for(int i=0; i<map.getNumRows(); i++) {
             for(int j=0; j<map.getNumCols(); j++) {
                 Tile tile = map.getTile(i, j);
@@ -199,33 +255,24 @@ public class MainController implements Initializable {
         }
 
         for(Animal anim : game.getAnimals()) {
+            int x = anim.getPos().getX(), y = anim.getPos().getY();
             if (anim instanceof Predator) {
-                gc.setFill(Color.RED);
+                gc.setStroke(Color.RED);
+                gc.strokeRect(y*tileWidth + tileWidth/4, x*tileHeight + tileHeight/4, tileWidth/2, tileHeight/2);
             }
             else if (anim instanceof Prey) {
                 gc.setFill(Color.BLUE);
-            }
-            int x = anim.getPos().getX(), y = anim.getPos().getY();
-            gc.fillOval(y*tileWidth + tileWidth/4, x*tileHeight + tileHeight/4, tileWidth/2, tileHeight/2);
-        }
-
-        Animal selAnimal = animalComboBox.getValue();
-        String healthTxt = "None", waterTxt = "None", foodTxt = "None";
-        if (selAnimal != null) {
-            if (selAnimal.getCurrPath() != null) {
-                drawPath(selAnimal.getCurrPath(), selAnimal.getPos());
+                gc.fillOval(y*tileWidth + tileWidth/4, x*tileHeight + tileHeight/4, tileWidth/2, tileHeight/2);
             }
 
-            healthTxt = "" + selAnimal.getHealth();
-
-            if (selAnimal instanceof Prey selPrey) {
-                waterTxt = "" + selPrey.getWaterLvl();
-                foodTxt = "" + selPrey.getFoodLvl();
+            if (anim == animalComboBox.getValue()) {
+                gc.setStroke(Color.PINK);
+                gc.strokeOval(y*tileWidth + tileWidth/4, x*tileHeight + tileHeight/4, tileWidth/2, tileHeight/2);
             }
         }
-        healthLabel.setText("Health: " + healthTxt);
-        waterLabel.setText("Water: " + waterTxt);
-        foodLabel.setText("Food: " + foodTxt);
+
+        refreshAnimalInfo();
+        refreshPlaceInfo();
     }
 
     private class Cell extends StackPane {

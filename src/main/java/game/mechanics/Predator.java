@@ -18,6 +18,7 @@ enum Mode {
 
 public class Predator extends Animal {
     private Mode mode = Mode.HUNTING;
+    private boolean alive = true;
     private Prey currTarget = null;
     private final Object currTargetGuard = new Object();
     private final static int RELAX_TIME = 5000;
@@ -58,6 +59,12 @@ public class Predator extends Animal {
     }
 
     @Override
+    public synchronized void killSelf() {
+        super.killSelf();
+        alive = false;
+    }
+
+    @Override
     public void run() {
         while(true) {
             try {
@@ -66,49 +73,52 @@ public class Predator extends Animal {
                 throw new RuntimeException(e);
             }
 
-            if(this.mode == Mode.HUNTING) {
-                synchronized (currTargetGuard) {
-                    if (this.currTarget == null) {
-                        try {
-                            this.currTarget = this.selectPrey();
-                        } catch (NoPreyException ex) {
-                            this.mode = Mode.RELAXING;
-                            continue;
+            synchronized (this) {
+                if (!alive)
+                    break;
+
+                if (this.mode == Mode.HUNTING) {
+                    synchronized (currTargetGuard) {
+                        if (this.currTarget == null) {
+                            try {
+                                this.currTarget = this.selectPrey();
+                            } catch (NoPreyException ex) {
+                                this.mode = Mode.RELAXING;
+                                continue;
+                            }
+
+                        }
+                        this.currPath = game.getMap().getPredatorPath(this.getPos(), this.currTarget.getPos());
+                        if (!currPath.isEmpty()) {
+                            this.makeStepOnPath();
                         }
 
-                    }
-                    this.currPath = game.getMap().getPredatorPath(this.getPos(), this.currTarget.getPos());
-                    if (!currPath.isEmpty()) {
-                        this.makeStepOnPath();
-                    }
-
-                    if (pos.equals(this.currTarget.getPos())) {
-                        if (this.attack(this.currTarget)) {
-                            this.mode = Mode.RELAXING;
-                            System.out.println("Yo we started relaxin'");
-                        } else {
-                            try {
-                                Thread.sleep(Predator.AFTER_ATTACK_PAUSE);
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
+                        if (pos.equals(this.currTarget.getPos())) {
+                            if (this.attack(this.currTarget)) {
+                                this.mode = Mode.RELAXING;
+                            } else {
+                                try {
+                                    Thread.sleep(Predator.AFTER_ATTACK_PAUSE);
+                                } catch (InterruptedException e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
                         }
                     }
+                } else if (this.mode == Mode.RELAXING) {
+                    try {
+                        Thread.sleep(Predator.RELAX_TIME);
+                        this.currTarget = this.selectPrey();
+                        this.mode = Mode.HUNTING;
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (NoPreyException e) {
+                        System.out.println("Yo, we continue relaxin'");
+                    }
+
                 }
             }
-            else if(this.mode == Mode.RELAXING) {
-                try {
-                    Thread.sleep(Predator.RELAX_TIME);
-                    this.currTarget = this.selectPrey();
-                    this.mode = Mode.HUNTING;
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (NoPreyException e) {
-                    System.out.println("Yo, we continue relaxin'");
-                }
-
-            }
-
         }
+        killSelf();
     }
 }

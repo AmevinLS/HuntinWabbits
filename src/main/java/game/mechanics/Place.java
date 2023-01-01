@@ -41,4 +41,12 @@ public abstract class Place extends Tile implements PreyVisitable {
     public synchronized int numFreeSpaces() {
         return sem.availablePermits();
     }
+
+    public List<Prey> getOccupants() {
+        return occupants;
+    }
+
+    public Object getOccupantsGuard() {
+        return occupants;
+    }
 }

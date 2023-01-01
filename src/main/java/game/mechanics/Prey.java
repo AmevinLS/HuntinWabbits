@@ -10,31 +10,43 @@ public class Prey extends Animal {
     private class Depleter extends Thread {
         private final static int DEPLETION_TIME = 2000;
         private boolean stopped = false;
+        private boolean paused = false;
 
-        public void finish() {
+        public synchronized void finish() {
             stopped = true;
+        }
+
+        public synchronized void pause() {
+            paused = true;
+        }
+        public synchronized void unpause() {
+            paused = false;
         }
 
         @Override
         public void run() {
             while (true) {
-                if (stopped)
-                    break;
-
                 try {
                     Thread.sleep(DEPLETION_TIME);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                processWaterLvlChange(-1);
-                processFoodLvlChange(-1);
+
+                synchronized (this) {
+                    if (stopped)
+                        break;
+
+                    if (!paused) {
+                        processWaterLvlChange(-1);
+                        processFoodLvlChange(-1);
+                    }
+                }
             }
         }
     }
 
     final private Depleter depleter = new Depleter();
 
-    final private int MAX_HEALTH;
     final private int MAX_WATER_LVL;
     final private int MAX_FOOD_LVL;
     private int waterLvl;
@@ -45,16 +57,23 @@ public class Prey extends Animal {
     private final Object stateGuard = new Object();
 
     private Place targetPlace = null;
+    private boolean alive = true;
 
     public Prey(Game game, String name, int health, int speed, int strength, String species, Position pos, int maxWaterLvl, int maxFoodLvl) {
         super(game, name, health, speed, strength, species, pos);
-        this.MAX_HEALTH = health;
         this.MAX_FOOD_LVL = maxFoodLvl;
         this.MAX_WATER_LVL = maxWaterLvl;
         this.foodLvl = this.MAX_FOOD_LVL;
         this.waterLvl = this.MAX_WATER_LVL;
     }
 
+    private void updateAliveStatus() {
+        if (hasNoHealth()) {
+            alive = false;
+        }
+    }
+
+    @Deprecated
     public WaterSource selectWaterSource() throws PreyPathInfeasibleException{
         WaterSource bestSrc = null;
         int bestDist = -1;
@@ -77,6 +96,7 @@ public class Prey extends Animal {
         return bestSrc;
     }
 
+    @Deprecated
     public FoodSource selectFoodSource() throws PreyPathInfeasibleException {
         FoodSource bestSrc = null;
         int bestDist = -1;
@@ -128,7 +148,7 @@ public class Prey extends Animal {
 
     public synchronized void decreaseHealth(int amount) {
         this.health -= amount;
-        killSelfIfDead();
+        updateAliveStatus();
     }
     public void processWaterLvlChange(int amount) {
         synchronized (waterLvlGuard) {
@@ -143,7 +163,6 @@ public class Prey extends Animal {
                 waterLvl = Integer.max(waterLvl + amount, 0);
             }
         }
-        killSelfIfDead();
     }
     public void processFoodLvlChange(int amount) {
         synchronized (foodLvlGuard) {
@@ -158,16 +177,12 @@ public class Prey extends Animal {
                 foodLvl = Integer.max(foodLvl + amount, 0);
             }
         }
-        killSelfIfDead();
     }
 
     public synchronized boolean receiveAttack(Predator pred) {
         if (pos.equals(pred.getPos())) {
             if (strength < pred.strength) {
-                health -= (pred.strength - strength);
-                if (!this.isAlive()) {
-                    this.killSelf();
-                }
+                decreaseHealth(pred.strength - strength);
             }
             System.out.println("Aw, damn, I got attacked! HP left: " + health);
             return true;
@@ -179,17 +194,19 @@ public class Prey extends Animal {
         // TODO
     }
 
-    public synchronized boolean isAlive() {
-        return (health > 0);
+    public synchronized boolean hasNoHealth() {
+        return (health <= 0);
     }
 
-    private synchronized void killSelf() {
+    @Override
+    public synchronized void killSelf() {
+        alive = false;
         depleter.finish();
-        game.removeAnimal(this);
+        super.killSelf();
     }
 
-    private synchronized void killSelfIfDead() {
-        if (!this.isAlive()) {
+    private synchronized void killSelfIfNoHealth() {
+        if (!this.hasNoHealth()) {
             System.out.println("Yo, I'm killing myself");
             this.killSelf();
         }
@@ -216,15 +233,16 @@ public class Prey extends Animal {
         depleter.start();
 
         Random rand = new Random();
-        while(this.isAlive()) {
-//            System.out.println("I am alive! Water: " + waterLvl + ", Food: " + foodLvl);
+        while(true) {
             try {
-                System.out.println("State:" + state);
                 Thread.sleep(LOOP_TIME_DELAY / speed);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
             synchronized (this) {
+                if (!alive) {
+                    break;
+                }
                 if (state == State.DEFAULT) {
                     if (foodLvl <= Math.ceil(MAX_FOOD_LVL * 0.4)) {
                         // TODO: investigate why drawing stuff changes
@@ -253,7 +271,9 @@ public class Prey extends Animal {
                     this.makeStepOnPath();
                     if (this.currPath.isEmpty()) {
                         this.currPath = null;
+                        depleter.pause();
                         this.enterTargetPlace();
+                        depleter.unpause();
                     }
                 }
 
@@ -270,47 +290,23 @@ public class Prey extends Animal {
                     // TODO: do something here
                 }
             }
-
-//            try {
-//                Thread.sleep(LOOP_TIME_DELAY / speed);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
-//
-//            synchronized (this) {
-//                Position newPos = new Position(-1, -1);
-//                while (!game.getMap().isValidPos(newPos)) {
-//                    int i = rand.nextInt(4);
-//                    if (i == 0) {
-//                        newPos = pos.shift(-1, 0);
-//                    } else if (i == 1) {
-//                        newPos = pos.shift(0, 1);
-//                    } else if (i == 2) {
-//                        newPos = pos.shift(1, 0);
-//                    } else {
-//                        newPos = pos.shift(0, -1);
-//                    }
-//                }
-//                pos = newPos;
-//            }
-//
-//            if (state == State.DEFAULT && health <= Math.ceil(MAX_HEALTH * 0.2)) {
-//                this.state = State.MOVING_TO_FOOD;
-//                try {
-//                    FoodSource src = this.selectFoodSource();
-//                    this.currPath = game.getMap().getPreyPath(this.pos, src.getPos());
-//                } catch (PreyPathInfeasibleException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
         }
+        killSelf();
     }
 
     public int getWaterLvl() {
         return waterLvl;
     }
 
+    public int getMaxWaterLvl() {
+        return MAX_WATER_LVL;
+    }
+
     public int getFoodLvl() {
         return foodLvl;
+    }
+
+    public int getMaxFoodLvl() {
+        return MAX_FOOD_LVL;
     }
 }
