@@ -1,5 +1,6 @@
 package game.mechanics;
 
+import java.util.Date;
 import java.util.Random;
 
 enum State {
@@ -58,6 +59,8 @@ public class Prey extends Animal {
 
     private Place targetPlace = null;
     private boolean alive = true;
+
+    private long lastReproduced;
 
     public Prey(Game game, String name, int health, int speed, int strength, String species, Position pos, int maxWaterLvl, int maxFoodLvl) {
         super(game, name, health, speed, strength, species, pos);
@@ -119,8 +122,8 @@ public class Prey extends Animal {
         return bestSrc;
     }
 
-    public Place selectPlace() throws PreyPathInfeasibleException{
-        Place bestPlace = switch (state) {
+    public Place selectPlace(State desiredState) throws PreyPathInfeasibleException{
+        Place bestPlace = switch (desiredState) {
             case MOVING_TO_FOOD -> new FoodSource(new Position(0, 0), "foo", 1, 1);
             case MOVING_TO_WATER -> new WaterSource(new Position(0, 0), "foo", 1, 1);
             case MOVING_TO_HIDEOUT -> new Hideout(new Position(0, 0), "foo", 1);
@@ -191,7 +194,16 @@ public class Prey extends Animal {
     }
 
     public void reproduce() {
-        // TODO
+        System.out.println("Reproducing!! (not implemented yet)");
+        if (state == State.HIDING) {
+            Prey child = new Prey(
+                    game, name+"child", MAX_HEALTH, speed, strength, species, pos, MAX_WATER_LVL, MAX_FOOD_LVL
+            );
+            game.addAnimal(child, true);
+        }
+        else {
+            throw new RuntimeException("Trying to reproduce not in hideout");
+        }
     }
 
     public synchronized boolean hasNoHealth() {
@@ -203,13 +215,6 @@ public class Prey extends Animal {
         alive = false;
         depleter.finish();
         super.killSelf();
-    }
-
-    private synchronized void killSelfIfNoHealth() {
-        if (!this.hasNoHealth()) {
-            System.out.println("Yo, I'm killing myself");
-            this.killSelf();
-        }
     }
 
     private void enterTargetPlace() {
@@ -227,14 +232,63 @@ public class Prey extends Animal {
         }
     }
 
+    private void leaveTargetPlace() {
+        if (!pos.equals(targetPlace.getPos())) {
+            throw new RuntimeException("Trying to leave Place, with positions of Place and Prey not equal");
+        }
+        targetPlace.leave(this);
+        synchronized (stateGuard) {
+            state = switch (state) {
+                case EATING, DRINKING, HIDING -> State.DEFAULT;
+                default -> throw new RuntimeException("Prey trying to exit Place from not a '...ING' state");
+            };
+        }
+    }
+
+    private void processChangeToState(State desiredState) {
+        synchronized (stateGuard) {
+            if (desiredState == State.MOVING_TO_FOOD || desiredState == State.MOVING_TO_WATER || desiredState == State.MOVING_TO_HIDEOUT) {
+                if (state == State.EATING || state == State.DRINKING || state == State.HIDING) {
+                    leaveTargetPlace();
+                }
+                try {
+                    Place place = this.selectPlace(desiredState);
+                    this.currPath = game.getMap().getPreyPath(this.pos, place.getPos());
+                    this.targetPlace = place;
+                    state = desiredState;
+                } catch (PreyPathInfeasibleException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (desiredState == State.DEFAULT) {
+                if (state == State.EATING || state == State.DRINKING || state == State.HIDING) {
+                    leaveTargetPlace();
+                }
+                state = desiredState;
+            }
+        }
+    }
+
+    private void processMoving() {
+        System.out.println("About to make step on path");
+        this.makeStepOnPath();
+        if (this.currPath.isEmpty()) {
+            this.currPath = null;
+            depleter.pause();
+            this.enterTargetPlace();
+            depleter.unpause();
+        }
+    }
+
     @Override
     public void run() {
         depleter.setDaemon(true);
         depleter.start();
 
-        Random rand = new Random();
+        lastReproduced = System.currentTimeMillis();
+
         while(true) {
             try {
+                System.out.println("Current state: " + state);
                 Thread.sleep(LOOP_TIME_DELAY / speed);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -243,51 +297,38 @@ public class Prey extends Animal {
                 if (!alive) {
                     break;
                 }
-                if (state == State.DEFAULT) {
+
+                if (state == State.DEFAULT || state == State.HIDING || state == State.MOVING_TO_HIDEOUT) {
                     if (foodLvl <= Math.ceil(MAX_FOOD_LVL * 0.4)) {
-                        // TODO: investigate why drawing stuff changes
-                        state = State.MOVING_TO_FOOD;
+                        processChangeToState(State.MOVING_TO_FOOD);
                     }
                     else if (waterLvl <= Math.ceil(MAX_WATER_LVL*0.4)) {
-                        state = State.MOVING_TO_WATER;
-                    }
-                    else {
-//                        state = State.MOVING_TO_HIDEOUT;
+                        processChangeToState(State.MOVING_TO_WATER);
                     }
 
-                    if (state == State.MOVING_TO_FOOD || state == State.MOVING_TO_WATER || state == State.MOVING_TO_HIDEOUT) {
-                        try {
-                            Place place = this.selectPlace();
-                            this.currPath = game.getMap().getPreyPath(this.pos, place.getPos());
-                            this.targetPlace = place;
-                        } catch (PreyPathInfeasibleException e) {
-                            throw new RuntimeException(e);
+                    if (state == State.MOVING_TO_HIDEOUT) {
+                        processMoving();
+                    }
+                    else if (state == State.HIDING) {
+                        if (System.currentTimeMillis() > lastReproduced + 10000) {
+                            lastReproduced = System.currentTimeMillis();
+                            reproduce();
+                            this.targetPlace.leave(this);
+                            state = State.DEFAULT;
                         }
                     }
-                }
-
-                if (state == State.MOVING_TO_FOOD || state == State.MOVING_TO_WATER || state == State.MOVING_TO_HIDEOUT) {
-                    System.out.println("About to make step on path");
-                    this.makeStepOnPath();
-                    if (this.currPath.isEmpty()) {
-                        this.currPath = null;
-                        depleter.pause();
-                        this.enterTargetPlace();
-                        depleter.unpause();
+                    else if (state == State.DEFAULT) {
+                        processChangeToState(State.MOVING_TO_HIDEOUT);
                     }
                 }
-
-                if (state == State.EATING && foodLvl >= Math.floor(MAX_FOOD_LVL * 0.9)) {
-                    this.targetPlace.leave(this);
-                    state = State.DEFAULT;
+                else if (state == State.MOVING_TO_FOOD || state == State.MOVING_TO_WATER) {
+                    processMoving();
+                }
+                else if (state == State.EATING && foodLvl >= Math.floor(MAX_FOOD_LVL * 0.9)) {
+                    processChangeToState(State.DEFAULT);
                 }
                 else if (state == State.DRINKING && waterLvl >= Math.floor(MAX_WATER_LVL * 0.9)) {
-                    this.targetPlace.leave(this);
-                    state = State.DEFAULT;
-                }
-
-                if (state == State.HIDING) {
-                    // TODO: do something here
+                    processChangeToState(State.DEFAULT);
                 }
             }
         }

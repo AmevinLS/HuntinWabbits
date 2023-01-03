@@ -41,9 +41,14 @@ public class Game {
         System.out.println("Not implemented LOL");
     }
 
-    public void addAnimal(Animal anim) {
+    public void addAnimal(Animal anim, boolean autostart) {
         synchronized (animalsGuard) {
             this.animals.add(anim);
+        }
+        if (autostart) {
+            Thread th = new Thread(anim);
+            th.setDaemon(true);
+            th.start();
         }
     }
 

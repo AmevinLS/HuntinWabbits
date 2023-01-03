@@ -33,9 +33,14 @@ public abstract class Place extends Tile implements PreyVisitable {
         }
     }
 
-    public void setMaxCapacity(int newCapacity) {
+    public synchronized void setMaxCapacity(int newCapacity) {
         this.maxCapacity = newCapacity;
-        // TODO: Make this more error-proof
+        if(!sem.hasQueuedThreads()) {
+            sem = new Semaphore(maxCapacity);
+        }
+        else {
+            throw new RuntimeException("Attempting to change Place capacity with occupants still inside");
+        }
     }
 
     public synchronized int numFreeSpaces() {

@@ -1,7 +1,6 @@
 package com.example.huntinwabbits;
 
 import game.mechanics.*;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
@@ -18,7 +17,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 import java.net.URL;
-import java.util.List;
 import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
@@ -76,9 +74,9 @@ public class MainController implements Initializable {
                 new Position(6, 2)
         );
 
-        this.game.addAnimal(pred);
-        this.game.addAnimal(prey);
-        this.game.addAnimal(prey2);
+        this.game.addAnimal(pred, false);
+        this.game.addAnimal(prey, false);
+        this.game.addAnimal(prey2, false);
 //        this.game.addAnimal(pred2);
 
         canvas = new Canvas();
@@ -118,10 +116,15 @@ public class MainController implements Initializable {
     }
 
     public void updateAnimalList() {
+        Animal lastSelAnimal = animalComboBox.getValue();
         animalComboBox.getItems().clear();
         for(Animal animal : game.getAnimals()) {
             animalComboBox.getItems().add(animal);
+            if (animal == lastSelAnimal) {
+                animalComboBox.getSelectionModel().select(animal);
+            }
         }
+
     }
 
     public void refreshAnimalInfo() {
@@ -168,11 +171,17 @@ public class MainController implements Initializable {
     }
 
     @FXML
+    protected void onAnimalComboBoxClick() {
+        updateAnimalList();
+    }
+
+    @FXML
     protected void onKillButtonClick() {
         Animal selAnimal = animalComboBox.getValue();
         if (selAnimal != null) {
             selAnimal.killSelf();
         }
+        updateAnimalList();
     }
 
     @FXML

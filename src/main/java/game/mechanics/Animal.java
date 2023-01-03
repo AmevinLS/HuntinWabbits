@@ -4,7 +4,7 @@ public abstract class Animal implements Runnable{
     final protected Game game;
     final protected String name;
     protected volatile int health;
-    final private int MAX_HEALTH;
+    final protected int MAX_HEALTH;
     protected int speed;
     final protected int strength;
     final protected String species;

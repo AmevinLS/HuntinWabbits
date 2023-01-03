@@ -23,7 +23,7 @@
                                  <children>
                                     <VBox alignment="CENTER" prefHeight="307.2" prefWidth="305.6" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                        <children>
-                                          <ComboBox fx:id="animalComboBox" prefHeight="26.0" prefWidth="226.0" />
+                                          <ComboBox fx:id="animalComboBox" onMouseClicked="#onAnimalComboBoxClick" prefHeight="26.0" prefWidth="226.0" />
                                           <Label fx:id="healthLabel" text="Health:" />
                                           <Label fx:id="waterLabel" text="WaterLvl:" />
                                           <Label fx:id="foodLabel" text="FoodLvl:" />
